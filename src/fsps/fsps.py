@@ -443,6 +443,18 @@ class StellarPopulation(object):
         Optical depth of the AGN dust torus, which affects the shape of the AGN
         SED.  Outside the range (5, 150) the AGN SED is an
         extrapolation.
+    
+    :param bhbcomp: (default: 4)
+        Index for the composition of the blue horizontal branch stars,
+        which use the Dorman, Rood, & O'Connell 1993 isochrones.
+        1: Y=0.245, Z=0.0001, [Fe/H]=-2.26
+        2: Y=0.247, Z=0.0006, [Fe/H]=-1.48
+        3: Y=0.257, Z=0.0060, [Fe/H]=-0.47
+        4: Y=0.288, Z=0.0169, [Fe/H]=+0.00
+        5: Y=0.292, Z=0.0400, [Fe/H]=+0.39
+        6: Y=0.356, Z=0.0400, [Fe/H]=+0.43
+        7: Y=0.289, Z=0.0600, [Fe/H]=+0.58
+        8: Y=0.459, Z=0.0600, [Fe/H]=+0.71
     """
 
     def __init__(
@@ -525,6 +537,7 @@ class StellarPopulation(object):
             duste_qpah=3.5,
             fagn=0.0,
             agn_tau=10.0,
+            bhbcomp=4,
         )
 
         # Parse any input options.
@@ -1289,6 +1302,7 @@ class ParameterSet(object):
         "logt_wmb_hot",
         "add_xrb_emission",
         "frac_xrb",
+        "bhbcomp",
         "smooth_lsf",
     ]
 

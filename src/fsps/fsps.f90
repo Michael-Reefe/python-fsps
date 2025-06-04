@@ -46,7 +46,8 @@ contains
                             delt,sbss,fbhb,pagb,add_stellar_remnants0,&
                             tpagb_norm_type0,add_agb_dust_model0,agb_dust,&
                             redgb,agb,masscut,fcstar,evtype,use_wr_spectra0,&
-                            logt_wmb_hot0,add_xrb_emission0,frac_xrb,smooth_lsf0)
+                            logt_wmb_hot0,add_xrb_emission0,frac_xrb,bhbcomp,&
+                            smooth_lsf0)
 
     ! Set the parameters that affect the SSP computation.
 
@@ -58,7 +59,7 @@ contains
                                     imf1,imf2,imf3,vdmc,mdave,dell,&
                                     delt,sbss,fbhb,pagb,agb_dust,&
                                     redgb,agb,masscut,fcstar,evtype,&
-                                    logt_wmb_hot0,frac_xrb
+                                    logt_wmb_hot0,frac_xrb,bhbcomp
 
     imf_type=imf_type0
     imf_upper_limit=imf_upper_limit0
@@ -87,6 +88,7 @@ contains
     pset%fcstar=fcstar
     pset%evtype=evtype
     pset%frac_xrb=frac_xrb
+    pset%bhbcomp=bhbcomp
 
     has_ssp(:) = 0
     has_ssp_age(:,:) = 0
