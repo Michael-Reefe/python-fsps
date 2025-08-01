@@ -19,6 +19,11 @@ module driver
   !f2py intent(hide) has_ssp_age
   integer, dimension(nz,nt) :: has_ssp_age=0
 
+  !f2py intent(hide) has_ssp_f
+  integer, dimension(nz,nfbhb,nsbss,ndell,ndelt) :: has_ssp_f=0
+
+  !f2py intent(hide) has_ssp_age_f
+  integer, dimension(nz,nfbhb,nsbss,ndell,ndelt,nt) :: has_ssp_age_f=0
 
 contains
 
@@ -88,7 +93,7 @@ contains
     pset%fcstar=fcstar
     pset%evtype=evtype
     pset%frac_xrb=frac_xrb
-    pset%bhbcomp=bhbcomp
+    ! pset%bhbcomp=bhbcomp
 
     has_ssp(:) = 0
     has_ssp_age(:,:) = 0
@@ -191,6 +196,162 @@ contains
 
   end subroutine
 
+  subroutine initialize_full_ssps()
+
+    ! Loop over metallicity, fbhb, sbss, dell, and delt to compute all the SSPs.
+    ! (this will take fucking forever...but it'll be worth it)
+
+    implicit none 
+    integer :: zi, fbhbi, sbssi, delli, delti, flat_index, stat0=1, stat1=1, stat2=1, stat3=1, i
+    real(SP), dimension(27) :: stat_ssp_itp, stat_ssp_itp_0
+    character(100) :: spec_cache
+    character(100) :: mass_cache
+    character(100) :: lbol_cache
+    character(100) :: stat_cache
+    character(5)   :: num, denom
+    logical :: cache_exists, f1e, f2e, f3e, f4e, stat_equal
+
+    write(*,*) 'Initializing the 6D SSP grid'
+
+    ! Allocate big-ass arrays for all the SSPs
+    allocate(spec_ssp_itp(nspec,ntfull,nz,nfbhb,nsbss,ndell,ndelt))
+    allocate(mass_ssp_itp(ntfull,nz,nfbhb,nsbss,ndell,ndelt))
+    allocate(lbol_ssp_itp(ntfull,nz,nfbhb,nsbss,ndell,ndelt))
+    mass_ssp_itp=0.
+    spec_ssp_itp=0.
+    lbol_ssp_itp=0.
+
+    ! Check if the cache file already exists
+    spec_cache=trim(SPS_HOME)//'/OUTPUTS/spec_ssp_itp.cache'
+    mass_cache=trim(SPS_HOME)//'/OUTPUTS/mass_ssp_itp.cache'
+    lbol_cache=trim(SPS_HOME)//'/OUTPUTS/lbol_ssp_itp.cache'
+    stat_cache=trim(SPS_HOME)//'/OUTPUTS/stat_ssp_itp.cache'
+    inquire(file=spec_cache, exist=f1e)
+    inquire(file=mass_cache, exist=f2e)
+    inquire(file=lbol_cache, exist=f3e)
+    inquire(file=stat_cache, exist=f4e)
+    cache_exists = f1e .and. f2e .and. f3e .and. f4e
+
+    ! save important information about how the isochrones should be generated based on
+    ! current values of the parameters that could change the resultant SSPs:
+    stat_ssp_itp(1)=real(imf_type)
+    stat_ssp_itp(2)=imf_upper_limit
+    stat_ssp_itp(3)=imf_lower_limit
+    stat_ssp_itp(4)=real(add_stellar_remnants)
+    stat_ssp_itp(5)=real(tpagb_norm_type)
+    stat_ssp_itp(6)=real(add_agb_dust_model)
+    stat_ssp_itp(7)=real(use_wr_spectra)
+    stat_ssp_itp(8)=logt_wmb_hot
+    stat_ssp_itp(9)=real(smooth_lsf)
+    stat_ssp_itp(10)=real(add_xrb_emission)
+    stat_ssp_itp(11)=pset%imf1
+    stat_ssp_itp(12)=pset%imf2
+    stat_ssp_itp(13)=pset%imf3
+    stat_ssp_itp(14)=pset%vdmc
+    stat_ssp_itp(15)=pset%mdave
+    stat_ssp_itp(16)=pset%dell
+    stat_ssp_itp(17)=pset%delt
+    stat_ssp_itp(18)=pset%sbss
+    stat_ssp_itp(19)=pset%fbhb
+    stat_ssp_itp(20)=pset%pagb
+    stat_ssp_itp(21)=pset%agb_dust
+    stat_ssp_itp(22)=pset%redgb
+    stat_ssp_itp(23)=pset%agb
+    stat_ssp_itp(24)=pset%masscut
+    stat_ssp_itp(25)=pset%fcstar
+    stat_ssp_itp(26)=pset%evtype
+    stat_ssp_itp(27)=pset%frac_xrb
+
+    if (.not.cache_exists) then
+      write(*,*) 'No cache exists'
+101   write(*,*) 'A new grid will be calculated (this may take a while).'
+      pset%ssp_gen_age = 1
+      flat_index = 1
+      do delti=1,ndelt
+        do delli=1,ndell 
+          do sbssi=1,nsbss 
+            do fbhbi=1,nfbhb 
+              do zi=1,nz
+                !omfg quintuply nested for loop o.O
+                write(num,   '(I0)') flat_index 
+                write(denom, '(I0)') nz*nfbhb*nsbss*ndell*ndelt
+                write(*, '(A)', advance='no') '('//num//'/'//denom//')'//char(13)
+                call ssp_f(zi,fbhbi,sbssi,delli,delti)
+                flat_index = flat_index + 1
+              enddo
+            enddo
+          enddo
+        enddo
+      enddo
+      write(*,*) ''
+      write(*,*) 'Done!'
+
+      write(*,*) 'Saving results to cache files: '//stat_cache//', '//spec_cache//', '//mass_cache//', '//lbol_cache 
+      open(96, file=stat_cache, access='stream', form='unformatted', status='new', iostat=stat0, action='write')
+      open(97, file=spec_cache, access='stream', form='unformatted', status='new', iostat=stat1, action='write')
+      open(98, file=mass_cache, access='stream', form='unformatted', status='new', iostat=stat2, action='write')
+      open(99, file=lbol_cache, access='stream', form='unformatted', status='new', iostat=stat3, action='write')
+      if (stat0.ne.0.or.stat1.ne.0.or.stat2.ne.0.or.stat3.ne.0) then
+        write(*,*) 'ssps_f error: cache files cannot be opened: '//stat_cache//', '//spec_cache//', '//mass_cache//', '//lbol_cache
+        stop
+      endif
+      write(96) stat_ssp_itp
+      write(97) spec_ssp_itp
+      write(98) mass_ssp_itp
+      write(99) lbol_ssp_itp
+      close(97)
+      close(98)
+      close(99)
+      write(*,*) 'Results saved successfully.'
+
+    else
+      write(*,*) 'A cache exists. Checking to see if relevant SSP parameters match.'
+
+      open(96, file=stat_cache, access='stream', form='unformatted', status='old', iostat=stat0, action='read')
+      if (stat0.ne.0) then 
+        write(*,*) 'ssps_f error: cache file cannot be opened: '//stat_cache 
+        stop 
+      endif
+      read(96) stat_ssp_itp_0
+      close(96) 
+
+      ! check that all of the stat parameters in the cache match the current ones 
+      stat_equal = .true.
+      do i=1,27
+        if (stat_ssp_itp_0(i) /= stat_ssp_itp(i)) stat_equal = .false.
+      enddo
+
+      if (.not. stat_equal) then 
+        write(*,*) 'SSP parameters do not match.'
+        goto 101
+      endif
+
+      write(*,*) 'SSP parameters match. Reading 6D SSP grid from cache files: '//spec_cache//', '//mass_cache//', '//lbol_cache
+      open(97, file=spec_cache, access='stream', form='unformatted', status='old', iostat=stat1, action='read')
+      open(98, file=mass_cache, access='stream', form='unformatted', status='old', iostat=stat2, action='read')
+      open(99, file=lbol_cache, access='stream', form='unformatted', status='old', iostat=stat3, action='read')
+      if (stat1.ne.0.or.stat2.ne.0.or.stat3.ne.0) then
+        write(*,*) 'ssps_f error: cache files cannot be opened: '//spec_cache//', '//mass_cache//', '//lbol_cache
+        stop
+      endif
+      read(97) spec_ssp_itp
+      read(98) mass_ssp_itp
+      read(99) lbol_ssp_itp
+      close(97)
+      close(98)
+      close(99)
+      write(*,*) 'Results read successfully.'
+
+      ! Set flags accordingly
+      has_ssp_f = 1
+      has_ssp_age_f = 1
+
+    endif
+
+    write(*,*) 'SSPs have finished initializing.'
+
+  end subroutine
+
   subroutine ssp(zi)
 
     ! Compute a SSP at a single metallicity.
@@ -205,6 +366,45 @@ contains
     endif
     has_ssp_age(zi,:) = pset%ssp_gen_age
 
+  end subroutine
+
+  subroutine ssp_f(zi, fbhbi, sbssi, delli, delti)
+
+    ! Compute a SSP at a single metallicity, fbhb, sbss, dell, and delt
+
+    implicit none
+    integer, intent(in) :: zi, fbhbi, sbssi, delli, delti
+    integer  :: zmet0
+    real(SP) :: fbhb0, sbss0, dell0, delt0
+
+    ! save the original values in the pset 
+    zmet0 = pset%zmet 
+    fbhb0 = pset%fbhb 
+    sbss0 = pset%sbss 
+    dell0 = pset%dell 
+    delt0 = pset%delt
+
+    ! set the new values
+    pset%zmet = zi
+    pset%fbhb = fbhb_legend(fbhbi)
+    pset%sbss = sbss_legend(sbssi)
+    pset%dell = dell_legend(delli)
+    pset%delt = delt_legend(delti)
+
+    call ssp_gen(pset, mass_ssp_itp(:,zi,fbhbi,sbssi,delli,delti),lbol_ssp_itp(:,zi,fbhbi,sbssi,delli,delti),&
+                 spec_ssp_itp(:,:,zi,fbhbi,sbssi,delli,delti))
+    if (minval(pset%ssp_gen_age) .eq. 1) then 
+      has_ssp_f(zi,fbhbi,sbssi,delli,delti) = 1
+    endif
+    has_ssp_age_f(zi,fbhbi,sbssi,delli,delti,:) = pset%ssp_gen_age 
+
+    ! and reset back to the original values
+    pset%zmet = zmet0 
+    pset%fbhb = fbhb0
+    pset%sbss = sbss0
+    pset%dell = dell0 
+    pset%delt = delt0
+  
   end subroutine
 
   subroutine compute_zdep(ns,n_age,ztype)
@@ -275,6 +475,54 @@ contains
 
   end subroutine
 
+  subroutine compute_fdep(ns,n_age)
+
+    ! Compute the full CSP (and the SSPs if they aren't already cached).
+    ! After interpolation in metallicity, fbhb, sbss, dell, and delt
+
+    implicit none
+    integer, intent(in) :: ns,n_age
+    double precision, dimension(ns,n_age) :: spec
+    double precision, dimension(n_age) :: mass,lbol
+    integer :: zlo,zi,fbhblo,fbhbi,sbsslo,sbssi,delllo,delli,deltlo,delti,flat_index
+    double precision :: zpos, fbhbpos, sbsspos, dellpos, deltpos
+    character(100) :: outfile
+
+    zpos = pset%logzsol
+    fbhbpos = pset%fbhb 
+    sbsspos = pset%sbss 
+    dellpos = pset%dell 
+    deltpos = pset%delt
+
+    ! Find the bracketing metallicity indices and generate ssps if
+    ! necessary, then interpolate, and feed the result to compsp
+    zlo    = max(min(locate(log10(zlegend/zsol),zpos),nz-1),1)
+    fbhblo = max(min(locate(fbhb_legend,fbhbpos),  nfbhb-1),1) 
+    sbsslo = max(min(locate(sbss_legend,sbsspos),  nsbss-1),1)
+    delllo = max(min(locate(dell_legend,dellpos),  ndell-1),1)
+    deltlo = max(min(locate(delt_legend,deltpos),  ndelt-1),1)
+
+    ! Calculate SSPs if they aren't already cached
+    do zi=zlo,zlo+1
+      do fbhbi=fbhblo,fbhblo+1
+        do sbssi=sbsslo,sbsslo+1
+          do delli=delllo,delllo+1
+            do delti=deltlo,deltlo+1
+              if (has_ssp_f(zi,fbhbi,sbssi,delli,delti) .eq. 0) then
+                  call ssp_f(zi,fbhbi,sbssi,delli,delti)
+              endif
+            enddo
+          enddo
+        enddo
+      enddo
+    enddo
+
+    ! Interpolate and compute the CSP
+    call zfinterp(zpos,fbhbpos,sbsspos,dellpos,deltpos,spec,lbol,mass)
+    call compsp(0,1,outfile,mass,lbol,spec,pset,ocompsp)
+
+  end subroutine
+
   subroutine get_spec(ns,n_age,spec_out)
 
     ! Get the grid of spectra for the computed CSP at all ages.
@@ -342,6 +590,57 @@ contains
 
     end subroutine
 
+    subroutine interp_ssp_f(ns,zpos,tpos,fbhbpos,sbsspos,dellpos,deltpos,spec,mass,lbol)
+
+    ! Return the SSPs interpolated to the target 
+    ! metallicity (zpos),
+    ! age (tpos),
+    ! fbhb (fbhbpos),
+    ! sbss (sbsspos),
+    ! dell (dellpos),
+    ! and delt (deltpos)
+
+    implicit none
+
+    integer, intent(in) :: ns
+    double precision, intent(in) :: zpos, tpos, fbhbpos, sbsspos, dellpos, deltpos
+
+    double precision, dimension(ns,1), intent(inout) :: spec
+    double precision, dimension(1), intent(inout) :: mass,lbol
+
+    double precision, dimension(nt) :: time
+
+    integer :: tlo,zlo,zi,fbhblo,fbhbi,sbsslo,sbssi,delllo,delli,deltlo,delti,flat_index
+
+    tlo = max(min(locate(time,tpos),nt-1),1)
+    time = timestep_isoc(zlo,:)
+
+    zlo    = max(min(locate(log10(zlegend/0.0190),zpos),nz-1),1)
+    fbhblo = max(min(locate(fbhb_legend,fbhbpos),    nfbhb-1),1) 
+    sbsslo = max(min(locate(sbss_legend,sbsspos),    nsbss-1),1)
+    delllo = max(min(locate(dell_legend,dellpos),    ndell-1),1)
+    deltlo = max(min(locate(delt_legend,deltpos),    ndelt-1),1) 
+
+    do zi=zlo,zlo+1
+      do fbhbi=fbhblo,fbhblo+1
+        do sbssi=sbsslo,sbsslo+1
+          do delli=delllo,delllo+1
+            do delti=deltlo,deltlo+1
+              if ((has_ssp_age_f(zi,fbhbi,sbssi,delli,delti,tlo) .eq. 0) .or. (has_ssp_age_f(zi,fbhbi,sbssi,delli,delti,tlo+1) .eq. 0)) then
+                  pset%ssp_gen_age = 0
+                  pset%ssp_gen_age(tlo:tlo+1) = 1
+                  call ssp_f(zi,fbhbi,sbssi,delli,delti)
+                  pset%ssp_gen_age = 1
+              endif
+            enddo
+          enddo
+        enddo
+      enddo
+    enddo
+
+    call zfinterp(zpos,fbhbpos,sbsspos,dellpos,deltpos,spec,lbol,mass,tpos=tpos)
+
+    end subroutine
 
     subroutine smooth_spectrum(ns,wave,spec,sigma_broad,minw,maxw)
 
@@ -414,6 +713,37 @@ contains
     ssp_spec_out = spec_ssp_zz
     ssp_mass_out = mass_ssp_zz
     ssp_lbol_out = lbol_ssp_zz
+
+  end subroutine
+
+  subroutine get_ssp_spec_f(ns,n_age,n_z,n_fbhb,n_sbss,n_dell,n_delt,ssp_spec_out,ssp_mass_out,ssp_lbol_out)
+
+    ! Return the contents of the ssp spectral array,
+    ! regenerating the ssps if necessary
+
+    implicit none
+    integer, intent(in) :: ns, n_age, n_z, n_fbhb, n_sbss, n_dell, n_delt
+    integer :: zi, fbhbi, sbssi, delli, delti
+    double precision, dimension(ns,n_age,n_z,n_fbhb,n_sbss,n_dell,n_delt), intent(inout) :: ssp_spec_out
+    double precision, dimension(n_age,n_z,n_fbhb,n_sbss,n_dell,n_delt), intent(inout)    :: ssp_mass_out, ssp_lbol_out
+
+    do delti=1,ndelt
+      do delli=1,ndell
+        do sbssi=1,nsbss
+          do fbhbi=1,nfbhb
+            do zi=1,nz
+              if (has_ssp_f(zi,fbhbi,sbssi,delli,delti) .eq. 0) then
+                  call ssp_f(zi,fbhbi,sbssi,delli,delti)
+              endif
+            enddo
+          enddo
+        enddo
+      enddo
+    enddo
+
+    ssp_spec_out = spec_ssp_itp
+    ssp_mass_out = mass_ssp_itp
+    ssp_lbol_out = lbol_ssp_itp
 
   end subroutine
 
@@ -509,6 +839,38 @@ contains
     implicit none
     integer, intent(out) :: ns
     ns = nspec
+
+  end subroutine
+
+  subroutine get_nfbhb(n_fbhb)
+
+    implicit none 
+    integer, intent(out) :: n_fbhb 
+    n_fbhb = nfbhb 
+
+  end subroutine
+
+  subroutine get_nsbss(n_sbss)
+
+    implicit none 
+    integer, intent(out) :: n_sbss 
+    n_sbss = nsbss 
+
+  end subroutine
+
+  subroutine get_ndell(n_dell)
+
+    implicit none 
+    integer, intent(out) :: n_dell 
+    n_dell = ndell 
+
+  end subroutine
+
+  subroutine get_ndelt(n_delt)
+
+    implicit none 
+    integer, intent(out) :: n_delt
+    n_delt = ndelt 
 
   end subroutine
 

@@ -23,6 +23,7 @@ set(
   FSPS_SOURCES
   "${CMAKE_CURRENT_SOURCE_DIR}/libfsps/src/sps_vars.f90"
   "${CMAKE_CURRENT_SOURCE_DIR}/libfsps/src/sps_utils.f90"
+  "${CMAKE_CURRENT_SOURCE_DIR}/libfsps/src/ndinterpolate.f90"
   "${CMAKE_CURRENT_SOURCE_DIR}/libfsps/src/add_agb_dust.f90"
   "${CMAKE_CURRENT_SOURCE_DIR}/libfsps/src/add_bs.f90"
   "${CMAKE_CURRENT_SOURCE_DIR}/libfsps/src/add_dust.f90"
@@ -63,6 +64,7 @@ set(
   "${CMAKE_CURRENT_SOURCE_DIR}/libfsps/src/vacairconv.f90"
   "${CMAKE_CURRENT_SOURCE_DIR}/libfsps/src/write_isochrone.f90"
   "${CMAKE_CURRENT_SOURCE_DIR}/libfsps/src/ztinterp.f90"
+  "${CMAKE_CURRENT_SOURCE_DIR}/libfsps/src/zfinterp.f90"
 )
 
 # Define the Python library

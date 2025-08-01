@@ -458,7 +458,7 @@ class StellarPopulation(object):
     """
 
     def __init__(
-        self, compute_vega_mags=False, vactoair_flag=False, zcontinuous=0, **kwargs
+        self, compute_vega_mags=False, vactoair_flag=False, zcontinuous=0, isoc_mod_itp=False, **kwargs
     ):
         # Set up the parameters to their default values.
         self.params = ParameterSet(
@@ -560,6 +560,7 @@ class StellarPopulation(object):
             assert compute_vega_mags == bool(cvms)
             assert vactoair_flag == bool(vtaflag)
         self._zcontinuous = zcontinuous
+        self._isoc_mod_itp = isoc_mod_itp
         # Caching.
         self._wavelengths = None
         self._resolutions = None
@@ -569,6 +570,12 @@ class StellarPopulation(object):
         self._ssp_ages = None
         self._stats = None
         self._libraries = None
+
+        # If the user requests the isoc_mod_itp option (isochrone modified parameter interpolation)
+        # then a 6D grid of SSPs will be generated and saved to disk upon initialization.
+        if self._isoc_mod_itp:
+            self._update_params()
+            driver.initialize_full_ssps()
 
     def _update_params(self):
         self.params.check_params()
@@ -583,7 +590,15 @@ class StellarPopulation(object):
 
         NSPEC = driver.get_nspec()
         NTFULL = driver.get_ntfull()
-        driver.compute_zdep(NSPEC, NTFULL, self._zcontinuous)
+        if self._isoc_mod_itp:
+            # 5D interpolation version 
+            # interpolates over the isochrone-modifying parameters
+            # (fbhb,sbss,dell,delt)
+            # as well as metallicity
+            assert self._zcontinuous == 1, "the isoc_mod_itp option requires zcontinuous=1"
+            driver.compute_fdep(NSPEC, NTFULL)
+        else:
+            driver.compute_zdep(NSPEC, NTFULL, self._zcontinuous)
 
         self._stats = None
 
@@ -782,10 +797,22 @@ class StellarPopulation(object):
         NSPEC = driver.get_nspec()
         NTFULL = driver.get_ntfull()
         NZ = driver.get_nz()
-        spec = np.zeros([NSPEC, NTFULL, NZ], order="F")
-        mass = np.zeros([NTFULL, NZ], order="F")
-        lbol = np.zeros([NTFULL, NZ], order="F")
-        driver.get_ssp_spec(spec, mass, lbol)
+
+        if self._isoc_mod_itp:
+            NFBHB = driver.get_nfbhb()
+            NSBSS = driver.get_nsbss()
+            NDELL = driver.get_ndell()
+            NDELT = driver.get_ndelt()
+            spec = np.zeros([NSPEC, NTFULL, NZ, NFBHB, NSBSS, NDELL, NDELT], order="F")
+            mass = np.zeros([NTFULL, NZ, NFBHB, NSBSS, NDELL, NDELT], order="F")
+            lbol = np.zeros([NTFULL, NZ, NFBHB, NSBSS, NDELL, NDELT], order="F")
+            driver.get_ssp_spec_f(spec, mass, lbol)
+
+        else:
+            spec = np.zeros([NSPEC, NTFULL, NZ], order="F")
+            mass = np.zeros([NTFULL, NZ], order="F")
+            lbol = np.zeros([NTFULL, NZ], order="F")
+            driver.get_ssp_spec(spec, mass, lbol)
 
         if peraa:
             wavegrid = self.wavelengths
