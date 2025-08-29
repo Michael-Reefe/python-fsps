@@ -93,7 +93,7 @@ contains
     pset%fcstar=fcstar
     pset%evtype=evtype
     pset%frac_xrb=frac_xrb
-    ! pset%bhbcomp=bhbcomp
+    pset%bhbcomp=bhbcomp
 
     has_ssp(:) = 0
     has_ssp_age(:,:) = 0
@@ -203,7 +203,7 @@ contains
 
     implicit none 
     integer :: zi, fbhbi, sbssi, delli, delti, flat_index, stat0=1, stat1=1, stat2=1, stat3=1, i
-    real(SP), dimension(27) :: stat_ssp_itp, stat_ssp_itp_0
+    real(SP), dimension(28) :: stat_ssp_itp, stat_ssp_itp_0
     character(100) :: spec_cache
     character(100) :: mass_cache
     character(100) :: lbol_cache
@@ -261,6 +261,7 @@ contains
     stat_ssp_itp(25)=pset%fcstar
     stat_ssp_itp(26)=pset%evtype
     stat_ssp_itp(27)=pset%frac_xrb
+    stat_ssp_itp(28)=pset%bhbcomp
 
     if (.not.cache_exists) then
       write(*,*) 'No cache exists'
@@ -317,7 +318,7 @@ contains
 
       ! check that all of the stat parameters in the cache match the current ones 
       stat_equal = .true.
-      do i=1,27
+      do i=1,28
         if (stat_ssp_itp_0(i) /= stat_ssp_itp(i)) stat_equal = .false.
       enddo
 
