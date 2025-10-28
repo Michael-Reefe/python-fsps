@@ -628,7 +628,8 @@ contains
         do sbssi=sbsslo,sbsslo+1
           do delli=delllo,delllo+1
             do delti=deltlo,deltlo+1
-              if ((has_ssp_age_f(zi,fbhbi,sbssi,delli,delti,tlo) .eq. 0) .or. (has_ssp_age_f(zi,fbhbi,sbssi,delli,delti,tlo+1) .eq. 0)) then
+              if ((has_ssp_age_f(zi,fbhbi,sbssi,delli,delti,tlo) .eq. 0) .or. &
+                  (has_ssp_age_f(zi,fbhbi,sbssi,delli,delti,tlo+1) .eq. 0)) then
                   pset%ssp_gen_age = 0
                   pset%ssp_gen_age(tlo:tlo+1) = 1
                   call ssp_f(zi,fbhbi,sbssi,delli,delti)
