@@ -486,7 +486,7 @@ contains
     integer, intent(in) :: ns,n_age,ztype
     double precision, dimension(ns,n_age) :: spec
     double precision, dimension(n_age) :: mass,lbol
-    double precision, dimension(ns,nz,n_age) :: spec_zz
+    double precision, dimension(ns,n_age,nz) :: spec_zz
     double precision, dimension(n_age,nz) :: mass_zz,lbol_zz
     integer :: zlo,zmet,zi,fbhblo,fbhbi,sbsslo,sbssi,delllo,delli,deltlo,delti,flat_index
     double precision :: zpos, fbhbpos, sbsspos, dellpos, deltpos
