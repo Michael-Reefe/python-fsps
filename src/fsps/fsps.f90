@@ -477,16 +477,18 @@ contains
 
   end subroutine
 
-  subroutine compute_fdep(ns,n_age)
+  subroutine compute_fdep(ns,n_age,ztype)
 
     ! Compute the full CSP (and the SSPs if they aren't already cached).
     ! After interpolation in metallicity, fbhb, sbss, dell, and delt
 
     implicit none
-    integer, intent(in) :: ns,n_age
+    integer, intent(in) :: ns,n_age,ztype
     double precision, dimension(ns,n_age) :: spec
     double precision, dimension(n_age) :: mass,lbol
-    integer :: zlo,zi,fbhblo,fbhbi,sbsslo,sbssi,delllo,delli,deltlo,delti,flat_index
+    double precision, dimension(ns,nz,n_age) :: spec_zz
+    double precision, dimension(n_age,nz) :: mass_zz,lbol_zz
+    integer :: zlo,zmet,zi,fbhblo,fbhbi,sbsslo,sbssi,delllo,delli,deltlo,delti,flat_index
     double precision :: zpos, fbhbpos, sbsspos, dellpos, deltpos
     character(100) :: outfile
 
@@ -520,8 +522,21 @@ contains
     enddo
 
     ! Interpolate and compute the CSP
-    call zfinterp(zpos,fbhbpos,sbsspos,dellpos,deltpos,spec,lbol,mass)
-    call compsp(0,1,outfile,mass,lbol,spec,pset,ocompsp)
+    if (ztype .eq. 0) then 
+      zmet = pset%zmet
+      call zfinterp2d(fbhbpos,sbsspos,dellpos,deltpos,spec_zz,lbol_zz,mass_zz)
+      call compsp(0,1,outfile,mass_zz(:,zmet),lbol_zz(:,zmet),spec_zz(:,:,zmet),pset,ocompsp)
+    end if
+
+    if (ztype .eq. 1) then
+      call zfinterp(zpos,fbhbpos,sbsspos,dellpos,deltpos,spec,lbol,mass)
+      call compsp(0,1,outfile,mass,lbol,spec,pset,ocompsp)
+    end if
+
+    if (ztype .eq. 3) then
+      call zfinterp2d(fbhbpos,sbsspos,dellpos,deltpos,spec_zz,lbol_zz,mass_zz)
+      call compsp(0,nz,outfile,mass_zz,lbol_zz,spec_zz,pset,ocompsp)
+    end if
 
   end subroutine
 

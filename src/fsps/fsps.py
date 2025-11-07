@@ -595,8 +595,8 @@ class StellarPopulation(object):
             # interpolates over the isochrone-modifying parameters
             # (fbhb,sbss,dell,delt)
             # as well as metallicity
-            assert self._zcontinuous == 1, "the isoc_mod_itp option requires zcontinuous=1"
-            driver.compute_fdep(NSPEC, NTFULL)
+            assert self._zcontinuous in (0,1,3), "the isoc_mod_itp option does not currently support zcontinuous=2"
+            driver.compute_fdep(NSPEC, NTFULL, self._zcontinuous)
         else:
             driver.compute_zdep(NSPEC, NTFULL, self._zcontinuous)
 
